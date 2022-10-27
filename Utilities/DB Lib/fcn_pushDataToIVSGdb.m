@@ -1,7 +1,7 @@
 function fcn_pushDataToIVSGdb(input_table)
 %% ------------------------ CONNECT TO DATABASE ------------------------ %%
 % Database parameters
-databasename = 'nsf_roadtraffic_friction_v2'; % database name
+databasename = 'road_traffic_extend_2_matlab'; % database name
 username = 'brennan'; % user name for the server
 password = 'ivsg@Reber320'; % password
 driver = 'org.postgresql.Driver';   % JDBC Driver
