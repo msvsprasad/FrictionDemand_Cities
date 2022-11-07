@@ -14,13 +14,13 @@ addpath('./Utilities/Circle Lib');
 addpath('./Utilities/UTM Lib');
 
 % Global variables for the vehicle model
-global flag_update global_acceleration
+%global flag_update global_acceleration
 
 %% Query and store ENU reference data
 enu_attributes = ['id, name, date_added, '...
-                  'latitude, longitude, altitude, geography, '...
-                  'epsg_code, latitude_std, longitude_std, altitude_std, '...
-                  'timestamp']; % attributes in the enu reference table
+    'latitude, longitude, altitude, geography, '...
+    'epsg_code, latitude_std, longitude_std, altitude_std, '...
+    'timestamp']; % attributes in the enu reference table
 
 % connect to the database
 db_name = 'nsf_roadtraffic_friction_v2';
@@ -30,12 +30,12 @@ db_username = 'brennan';
 db_password = 'ivsg@Reber320';
 traffic_table = 'enu_reference';
 DB = Database(db_name,db_ip_address,db_port,...
-              db_username,db_password);
+    db_username,db_password);
 
 % SQL statement to query vehicle trajectory
 enu_query = ['SELECT ' enu_attributes...
-             ' FROM ' traffic_table...
-                   ' ORDER BY date_added'];
+    ' FROM ' traffic_table...
+    ' ORDER BY date_added'];
 
 % query trajectory data from the DB
 enu_reference_table = fetch(DB.db_connection, enu_query);
@@ -51,6 +51,7 @@ wgs84 = wgs84Ellipsoid;
 
 %% Define inputs and parameters
 % define database for vehicle trajectories
+% make function
 dbInput.ip_address = '130.203.223.234'; % Ip address of server host
 dbInput.port       = '5432'; % port number
 dbInput.username   = 'brennan'; % user name for the server
@@ -58,7 +59,7 @@ dbInput.password   = 'ivsg@Reber320'; % password
 
 dbInput.db_name       = 'roi_db'; % database name
 dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
-dbInput.trip_id       = 15; % traffic simulation id
+dbInput.trip_id       = 16; % traffic simulation id
 
 % flag triggers
 flag.dbQuery  = true; % set to 'true' to query from the database
@@ -130,7 +131,7 @@ LonLim = (-78.0006+(1/(3*3600)):(1/(3*3600)):-76.9994);
 
 % create the elevation map
 elevation_map = [lat_grid(:) long_grid(:) A(:)];
-
+%%
 % convert lat and long to UTM
 [X,Y] = ll2utm(elevation_map(:,1),elevation_map(:,2),18);
 
@@ -143,8 +144,8 @@ else
 end % NOTE: END IF statement 'flag.dbQuery'
 
 %% Query for vehicle trajectory
-%for index_vehicle = 1:numel(list_of_vehicleIds)
-index_vehicle = 1;
+%for index_vehicle = 1:100
+    index_vehicle = 1;
     if flag.dbQuery
         raw_trajectory = fcn_queryVehicleTrajectory(list_of_vehicleIds(index_vehicle),...
             dbInput.trip_id,dbInput);
@@ -155,8 +156,12 @@ index_vehicle = 1;
     %% Create the elevation map
     % Find the nearest neighbors
     Idx = knnsearch([X,Y],[raw_trajectory{:,{'position_front_x','position_front_y'}}],"K",2);
-    
+    % replaced snap function
     % find elevation by interpolation
+    
+    % initialize variable equal to the length of the trajectory to store
+    % altitude
+    
     path_vector = [X(Idx(:,2))-X(Idx(:,1)), Y(Idx(:,2))-Y(Idx(:,1))];
     path_segment_length  = sum(path_vector.^2,2).^0.5;
     point_vector = [raw_trajectory{:,{'position_front_x'}}-X(Idx(:,1)), raw_trajectory{:,{'position_front_y'}}-Y(Idx(:,1))];
@@ -169,7 +174,65 @@ index_vehicle = 1;
     %% Convert lla to enu
     % lat and lon is as querried from the database
     % height is alt
-    [xEast, yNorth, zUp] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
+    [cg_east, cg_north, cg_up] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
         raw_trajectory{:,{'longitude_front'}},...
         alt, lat0, lon0, h0, wgs84);
-%end
+%    %% Set output data to push to DB
+%     % store data to structure
+%     output_data_length = length(cg_east);
+%     
+%     % reference for LLA to ENU transformation
+%     friction_measurement.enu_reference_id = enu_reference_id*ones(output_data_length,1);
+%  
+%     % traffic and vehicle dynamic simulation information
+%     friction_measurement.traffic_sim_trip_id = dbInput.trip_id*ones(output_data_length,1);
+%     friction_measurement.vehicle_sim_trip_id = simulink_trip_id*ones(output_data_length,1);
+%   
+%     % vehicle information
+%     friction_measurement.vehicle_id = list_of_vehicleIds(index_vehicle)*ones(output_data_length,1);
+%     
+%     % vehicle cg ENU data
+%     friction_measurement.cg_east = cg_east;
+%     friction_measurement.cg_north = cg_north;
+%     friction_measurement.cg_up = alt;
+%     
+%     % convert structure to a table
+%     friction_measurement_table = struct2table(friction_measurement);
+%     
+%     %% Define database information
+%     tablename = 'road_traffic_extend_2_matlab'; % reference table
+%     databasename = 'roi_db'; % database name
+%     username = 'brennan'; % user name for the server
+%     password = 'ivsg@Reber320'; % password
+%     driver = 'org.postgresql.Driver';   % JDBC Driver
+%     url    = ['jdbc:postgresql://130.203.223.234:5432/',databasename]; % This defines the IP address and port of the computer hosting the data (MOST important)
+%     
+%     % connect to databse
+%     conn = database(databasename,username,password,driver,url);
+%     
+%     % check the connection status and
+%     % try to reconnect if the connection is not successful
+%     while 0~=size(conn.Message)
+%         fprintf('Trying to connect to the DB \n');
+%         conn = database(databasename,username,password,driver,url);
+%     end
+%     fprintf('Connected to the DB \n');
+%     
+%     %% ----------------------- PUSH DATA TO DATABASE ----------------------- %%
+%     % insert data into the table
+%     sqlwrite(conn, tablename, friction_measurement_table);
+%     
+%     %% ----------------------- DISCONNECT TO DATABASE ---------------------- %%
+%     close(conn);
+%     % run data push back to database
+% %end
+% 
+% %% Plot
+% %plot(X,Y)
+% figure(1)
+% plot(cg_east,cg_north)
+% 
+% figure(2)
+% plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}},'b');
+% 
+% 
