@@ -24,10 +24,10 @@ dbInput.port       = '5432'; % port number
 dbInput.username   = 'brennan'; % user name for the server
 dbInput.password   = 'ivsg@Reber320'; % password
 dbInput.trip_id    = 16; % traffic simulation id
+dbInput.db_name       = 'roi_db'; % database name
 
 % DB parameters that will change
-dbInput.db_name       = 'nsf_roadtraffic_friction_v2'; % database name
-dbInput.traffic_table = 'enu_reference'; % table containing traffic simulation data
+dbInput.traffic_table = 'enu_reference_roi_db';
 
 % flag triggers
 flag.dbQuery  = true; % set to 'true' to query from the database
@@ -48,7 +48,6 @@ h0 = enu_reference_table{1,{'altitude'}};
 wgs84 = wgs84Ellipsoid;
 
 %% Define inputs and parameters
-
 deltaT           = 0.01; % Vehicle simulation step-size
 aimsun_step_size = 0.1; % Microscopic simulation step-size
 
@@ -110,9 +109,13 @@ LonLim = (-78.0006+(1/(3*3600)):(1/(3*3600)):-76.9994);
 
 % create the elevation map
 elevation_map = [lat_grid(:) long_grid(:) A(:)];
-%%
+
 % convert lat and long to UTM
 [X,Y] = ll2utm(elevation_map(:,1),elevation_map(:,2),18);
+
+%% Set DB name and traffic table name
+dbInput.db_name       = 'roi_db'; % database name
+dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
 
 %% Query for valid Section ID and Vehicle ID combinations
 if flag.dbQuery
@@ -123,11 +126,7 @@ else
 end % NOTE: END IF statement 'flag.dbQuery'
 
 %% Query for vehicle trajectory
-for index_vehicle = 1:100
-    % set DB name and traffic table name
-    dbInput.db_name       = 'roi_db'; % database name
-    dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
-    
+for index_vehicle = 1
     if flag.dbQuery
         % query the vehicle trajectory
         raw_trajectory = fcn_queryVehicleTrajectory(list_of_vehicleIds(index_vehicle),...
@@ -137,13 +136,28 @@ for index_vehicle = 1:100
     end % NOTE: END IF statement 'flag.dbQuery'
 
     %% Create the elevation map
+    position_front_x_min = min(raw_trajectory{:,{'position_front_x'}});
+    position_front_x_max = max(raw_trajectory{:,{'position_front_x'}});
+    position_front_y_max = max(raw_trajectory{:,{'position_front_y'}});
+    position_front_y_min = min(raw_trajectory{:,{'position_front_y'}});
+    elevation_map_range = (X>=position_front_x_min & ...
+                           X<=position_front_x_max & ...
+                           Y>=position_front_y_min & ...
+                           Y<=position_front_y_max);
+    Xnew = X(X>=position_front_x_min & X<=position_front_x_max & ...
+        Y>=position_front_y_min & Y <=position_front_y_max);
+    Ynew = Y(X>=position_front_x_min & X<=position_front_x_max & ...
+        Y>=position_front_y_min & Y <=position_front_y_max);
+
+    elevation_map_new = elevation_map(elevation_map_range,:);
+
     % Find the nearest neighbors
-    Idx = knnsearch([X,Y],[raw_trajectory{:,{'position_front_x','position_front_y'}}],"K",2);
-    
+    Idx = knnsearch([Xnew,Ynew],[raw_trajectory{:,{'position_front_x','position_front_y'}}],"K",2);
+
     % convert to altitude
-    path_vector = [X(Idx(:,2))-X(Idx(:,1)), Y(Idx(:,2))-Y(Idx(:,1))];
+    path_vector = [Xnew(Idx(:,2))-Xnew(Idx(:,1)), Ynew(Idx(:,2))-Ynew(Idx(:,1))];
     path_segment_length  = sum(path_vector.^2,2).^0.5;
-    point_vector = [raw_trajectory{:,{'position_front_x'}}-X(Idx(:,1)), raw_trajectory{:,{'position_front_y'}}-Y(Idx(:,1))];
+    point_vector = [raw_trajectory{:,{'position_front_x'}}-Xnew(Idx(:,1)), raw_trajectory{:,{'position_front_y'}}-Ynew(Idx(:,1))];
     projection_distance  = (path_vector(:,1).*point_vector(:,1)+...
         path_vector(:,2).*point_vector(:,2))./path_segment_length; % Do dot product
     percent_along_length = projection_distance./path_segment_length;
@@ -179,55 +193,56 @@ for index_vehicle = 1:100
     elevation_measurement_table = struct2table(elevation_measurement);
 
     %% Define database information
-    fcn_pushElevationDataToROIdb(elevation_measurement_table)
-%     tablename = 'road_traffic_extend_2_matlab'; % reference table
-%     databasename = 'roi_db'; % database name
-%     username = 'brennan'; % user name for the server
-%     password = 'ivsg@Reber320'; % password
-%     driver = 'org.postgresql.Driver';   % JDBC Driver
-%     url    = ['jdbc:postgresql://130.203.223.234:5432/',databasename]; % This defines the IP address and port of the computer hosting the data (MOST important)
-% 
-%     % connect to databse
-%     conn = database(databasename,username,password,driver,url);
-% 
-%     % check the connection status and
-%     % try to reconnect if the connection is not successful
-%     while 0~=size(conn.Message)
-%         fprintf('Trying to connect to the DB \n');
-%         conn = database(databasename,username,password,driver,url);
-%     end
-%     fprintf('Connected to the DB \n');
-% 
-%     %% ----------------------- PUSH DATA TO DATABASE ----------------------- %%
-%     % insert data into the table
-%     sqlwrite(conn, tablename, friction_measurement_table);
-% 
-%     %% ----------------------- DISCONNECT TO DATABASE ---------------------- %%
-%     close(conn);
-%     % run data push back to database
-end
-%     % Plot
-%     xmin = min(X);
-%     xmax = max(X);
-%     ymin = min(Y);
-%     ymax = max(Y);
+%     fcn_pushElevationDataToROIdb(elevation_measurement_table)
+    %     tablename = 'road_traffic_extend_2_matlab'; % reference table
+    %     databasename = 'roi_db'; % database name
+    %     username = 'brennan'; % user name for the server
+    %     password = 'ivsg@Reber320'; % password
+    %     driver = 'org.postgresql.Driver';   % JDBC Driver
+    %     url    = ['jdbc:postgresql://130.203.223.234:5432/',databasename]; % This defines the IP address and port of the computer hosting the data (MOST important)
+    %
+    %     % connect to databse
+    %     conn = database(databasename,username,password,driver,url);
+    %
+    %     % check the connection status and
+    %     % try to reconnect if the connection is not successful
+    %     while 0~=size(conn.Message)
+    %         fprintf('Trying to connect to the DB \n');
+    %         conn = database(databasename,username,password,driver,url);
+    %     end
+    %     fprintf('Connected to the DB \n');
+    %
+    %     %% ----------------------- PUSH DATA TO DATABASE ----------------------- %%
+    %     % insert data into the table
+    %     sqlwrite(conn, tablename, friction_measurement_table);
+    %
+    %     %% ----------------------- DISCONNECT TO DATABASE ---------------------- %%
+    %     close(conn);
+    %     % run data push back to database
+%%
+    % Plot
+    xnewmin = min(Xnew);
+    xnewmax = max(Xnew);
+    ynewmin = min(Ynew);
+    ynewmax = max(Ynew);
 %     hold on
-%     plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}})
-%     hold all
-%     yline(ymin)
-%     yline(ymax)
-%     xline(xmin)
-%     xline(xmax)
+    plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}})
+    hold all
+    yline(ynewmin)
+    yline(ynewmax)
+    xline(xnewmin)
+    xline(xnewmax)
 %     hold on
 %     plot(cg_east,cg_north)
-% 
+% %
 %     figure(2)
 %     plot3(cg_east,cg_north,cg_up)
 %     %plot(X,Y)
-%     figure(1)
+%     figure(2)
 %     plot(cg_east,cg_north)
-%     
+%
 %     figure(2)
 %     plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}},'b');
-%     
-%     
+%
+%
+end
