@@ -14,52 +14,20 @@ addpath('./Utilities/Circle Lib');
 addpath('./Utilities/UTM Lib');
 
 % Global variables for the vehicle model
-%global flag_update global_acceleration
+% global flag_update global_acceleration
 
-%% Query and store ENU reference data
-enu_attributes = ['id, name, date_added, '...
-    'latitude, longitude, altitude, geography, '...
-    'epsg_code, latitude_std, longitude_std, altitude_std, '...
-    'timestamp']; % attributes in the enu reference table
-
-% connect to the database
-db_name = 'nsf_roadtraffic_friction_v2';
-db_ip_address = '130.203.223.234'; % IP address of server host
-db_port = '5432';
-db_username = 'brennan';
-db_password = 'ivsg@Reber320';
-traffic_table = 'enu_reference';
-DB = Database(db_name,db_ip_address,db_port,...
-    db_username,db_password);
-
-% SQL statement to query vehicle trajectory
-enu_query = ['SELECT ' enu_attributes...
-    ' FROM ' traffic_table...
-    ' ORDER BY date_added'];
-
-% query trajectory data from the DB
-enu_reference_table = fetch(DB.db_connection, enu_query);
-
-% Disconnect from the database
-DB.disconnect();
-
-%% Set coordinates of local origin for converting LLA to ENU
-lat0 = enu_reference_table{1,{'latitude'}};
-lon0 = enu_reference_table{1,{'longitude'}};
-h0 = enu_reference_table{1,{'altitude'}};
-wgs84 = wgs84Ellipsoid;
 
 %% Define inputs and parameters
-% define database for vehicle trajectories
-% make function
+% Database (DB) parameters that will NOT change
 dbInput.ip_address = '130.203.223.234'; % Ip address of server host
 dbInput.port       = '5432'; % port number
 dbInput.username   = 'brennan'; % user name for the server
 dbInput.password   = 'ivsg@Reber320'; % password
+dbInput.trip_id    = 16; % traffic simulation id
 
-dbInput.db_name       = 'roi_db'; % database name
-dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
-dbInput.trip_id       = 16; % traffic simulation id
+% DB parameters that will change
+dbInput.db_name       = 'nsf_roadtraffic_friction_v2'; % database name
+dbInput.traffic_table = 'enu_reference'; % table containing traffic simulation data
 
 % flag triggers
 flag.dbQuery  = true; % set to 'true' to query from the database
@@ -67,8 +35,19 @@ flag.doDebug  = true; % set to 'true' to print trajectory information to command
 flag.plot     = true; % set to 'true' to plot
 flag.dbInsert = false; % set to 'true' to insert data to database
 
+% DB insert variables
 enu_reference_id = 3;
 simulink_trip_id = 503;
+%% Query and store ENU reference data
+enu_reference_table = fcn_queryENUData(dbInput);
+
+% Set coordinates of local origin for converting LLA to ENU
+lat0 = enu_reference_table{1,{'latitude'}};
+lon0 = enu_reference_table{1,{'longitude'}};
+h0 = enu_reference_table{1,{'altitude'}};
+wgs84 = wgs84Ellipsoid;
+
+%% Define inputs and parameters
 
 deltaT           = 0.01; % Vehicle simulation step-size
 aimsun_step_size = 0.1; % Microscopic simulation step-size
@@ -144,72 +123,73 @@ else
 end % NOTE: END IF statement 'flag.dbQuery'
 
 %% Query for vehicle trajectory
-%for index_vehicle = 1:100
-    index_vehicle = 1;
+for index_vehicle = 1:100
+    % set DB name and traffic table name
+    dbInput.db_name       = 'roi_db'; % database name
+    dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
+    
     if flag.dbQuery
+        % query the vehicle trajectory
         raw_trajectory = fcn_queryVehicleTrajectory(list_of_vehicleIds(index_vehicle),...
             dbInput.trip_id,dbInput);
     else
         load(['raw_trajectory_V' num2str(list_of_vehicleIds(index_vehicle)) '_T' num2str(dbInput.trip_id) '.mat']);
     end % NOTE: END IF statement 'flag.dbQuery'
-    
+
     %% Create the elevation map
     % Find the nearest neighbors
     Idx = knnsearch([X,Y],[raw_trajectory{:,{'position_front_x','position_front_y'}}],"K",2);
-    % replaced snap function
-    % find elevation by interpolation
     
-    % initialize variable equal to the length of the trajectory to store
-    % altitude
-    
+    % convert to altitude
     path_vector = [X(Idx(:,2))-X(Idx(:,1)), Y(Idx(:,2))-Y(Idx(:,1))];
     path_segment_length  = sum(path_vector.^2,2).^0.5;
     point_vector = [raw_trajectory{:,{'position_front_x'}}-X(Idx(:,1)), raw_trajectory{:,{'position_front_y'}}-Y(Idx(:,1))];
-    projection_distance  = dot(path_vector,point_vector)./path_segment_length; % Do dot product
+    projection_distance  = (path_vector(:,1).*point_vector(:,1)+...
+        path_vector(:,2).*point_vector(:,2))./path_segment_length; % Do dot product
     percent_along_length = projection_distance./path_segment_length;
-    
+
     % Calculate the outputs
     alt = elevation_map(Idx(:,1),3) + (elevation_map(Idx(:,2),3) - elevation_map(Idx(:,1),3)).*percent_along_length;
-    
     %% Convert lla to enu
     % lat and lon is as querried from the database
     % height is alt
     [cg_east, cg_north, cg_up] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
         raw_trajectory{:,{'longitude_front'}},...
         alt, lat0, lon0, h0, wgs84);
-%    %% Set output data to push to DB
-%     % store data to structure
-%     output_data_length = length(cg_east);
-%     
-%     % reference for LLA to ENU transformation
-%     friction_measurement.enu_reference_id = enu_reference_id*ones(output_data_length,1);
-%  
-%     % traffic and vehicle dynamic simulation information
-%     friction_measurement.traffic_sim_trip_id = dbInput.trip_id*ones(output_data_length,1);
-%     friction_measurement.vehicle_sim_trip_id = simulink_trip_id*ones(output_data_length,1);
-%   
-%     % vehicle information
-%     friction_measurement.vehicle_id = list_of_vehicleIds(index_vehicle)*ones(output_data_length,1);
-%     
-%     % vehicle cg ENU data
-%     friction_measurement.cg_east = cg_east;
-%     friction_measurement.cg_north = cg_north;
-%     friction_measurement.cg_up = alt;
-%     
-%     % convert structure to a table
-%     friction_measurement_table = struct2table(friction_measurement);
-%     
-%     %% Define database information
+    %% Set output data to push to DB
+    % store data to structure
+    output_data_length = length(cg_east);
+
+    % reference for LLA to ENU transformation
+    elevation_measurement.enu_reference_id = enu_reference_id*ones(output_data_length,1);
+
+    % traffic and vehicle dynamic simulation information
+    elevation_measurement.traffic_sim_trip_id = dbInput.trip_id*ones(output_data_length,1);
+    elevation_measurement.vehicle_sim_trip_id = simulink_trip_id*ones(output_data_length,1);
+
+    % vehicle information
+    elevation_measurement.vehicle_id = list_of_vehicleIds(index_vehicle)*ones(output_data_length,1);
+
+    % vehicle cg ENU data
+    elevation_measurement.cg_east = cg_east;
+    elevation_measurement.cg_north = cg_north;
+    elevation_measurement.cg_up = cg_up;
+
+    % convert structure to a table
+    elevation_measurement_table = struct2table(elevation_measurement);
+
+    %% Define database information
+    fcn_pushElevationDataToROIdb(elevation_measurement_table)
 %     tablename = 'road_traffic_extend_2_matlab'; % reference table
 %     databasename = 'roi_db'; % database name
 %     username = 'brennan'; % user name for the server
 %     password = 'ivsg@Reber320'; % password
 %     driver = 'org.postgresql.Driver';   % JDBC Driver
 %     url    = ['jdbc:postgresql://130.203.223.234:5432/',databasename]; % This defines the IP address and port of the computer hosting the data (MOST important)
-%     
+% 
 %     % connect to databse
 %     conn = database(databasename,username,password,driver,url);
-%     
+% 
 %     % check the connection status and
 %     % try to reconnect if the connection is not successful
 %     while 0~=size(conn.Message)
@@ -217,22 +197,37 @@ end % NOTE: END IF statement 'flag.dbQuery'
 %         conn = database(databasename,username,password,driver,url);
 %     end
 %     fprintf('Connected to the DB \n');
-%     
+% 
 %     %% ----------------------- PUSH DATA TO DATABASE ----------------------- %%
 %     % insert data into the table
 %     sqlwrite(conn, tablename, friction_measurement_table);
-%     
+% 
 %     %% ----------------------- DISCONNECT TO DATABASE ---------------------- %%
 %     close(conn);
 %     % run data push back to database
-% %end
+end
+%     % Plot
+%     xmin = min(X);
+%     xmax = max(X);
+%     ymin = min(Y);
+%     ymax = max(Y);
+%     hold on
+%     plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}})
+%     hold all
+%     yline(ymin)
+%     yline(ymax)
+%     xline(xmin)
+%     xline(xmax)
+%     hold on
+%     plot(cg_east,cg_north)
 % 
-% %% Plot
-% %plot(X,Y)
-% figure(1)
-% plot(cg_east,cg_north)
-% 
-% figure(2)
-% plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}},'b');
-% 
-% 
+%     figure(2)
+%     plot3(cg_east,cg_north,cg_up)
+%     %plot(X,Y)
+%     figure(1)
+%     plot(cg_east,cg_north)
+%     
+%     figure(2)
+%     plot(raw_trajectory{:,{'position_front_x'}},raw_trajectory{:,{'position_front_y'}},'b');
+%     
+%     
