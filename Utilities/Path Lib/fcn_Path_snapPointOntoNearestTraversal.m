@@ -157,10 +157,12 @@ if 1 == closest_path_point_index || Npoints == closest_path_point_index
     % See: https://mathinsight.org/dot_product for explanation
     % Basically, we are seeing what amount the point_vector points in the
     % direction of the path_vector
-    path_vector  = path(second_path_point_index,:)-path(first_path_point_index,:);
+%     [X(Idx(:,2))-X(Idx(:,1)), Y(Idx(:,2))-Y(Idx(:,1))];
+    path_vector  = [path(:,second_path_point_index), path(:,first_path_point_index)];
     path_segment_length  = sum(path_vector.^2,2).^0.5;
     point_vector = point-path(first_path_point_index,:);
-    projection_distance  = dot(path_vector,point_vector)/path_segment_length; % Do dot product
+    projection_distance  = (path_vector(:,1).*point_vector(:,1)+path_vector(:,2).*point_vector(:,2))./path_segment_length;
+%     dot(path_vector,point_vector)/path_segment_length; % Do dot product
     percent_along_length = projection_distance/path_segment_length;
     
     % Calculate the outputs
