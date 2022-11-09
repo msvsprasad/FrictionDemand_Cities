@@ -26,32 +26,6 @@ addpath('./Utilities/UTM Lib');
 % Global variables for the vehicle model
 global flag_update global_acceleration
 
-%% Query and store ENU reference data
-enu_attributes = ['id, name, date_added, '...
-                  'latitude, longitude, altitude, geography, '...
-                  'epsg_code, latitude_std, longitude_std, altitude_std, '...
-                  'timestamp']; % attributes in the enu reference table
-
-% connect to the database
-db_name = 'nsf_roadtraffic_friction_v2';
-db_ip_address = '130.203.223.234'; % IP address of server host
-db_port = '5432';
-db_username = 'brennan';
-db_password = 'ivsg@Reber320';
-traffic_table = 'enu_reference';
-DB = Database(db_name,db_ip_address,db_port,...
-              db_username,db_password);
-
-% SQL statement to query vehicle trajectory
-enu_query = ['SELECT ' enu_attributes...
-             ' FROM ' traffic_table...
-                   ' ORDER BY date_added'];
-
-% query trajectory data from the DB
-enu_reference_table = fetch(DB.db_connection, enu_query);
-
-% Disconnect from the database
-DB.disconnect();
 %% Define inputs and parameters
 % define database for vehicle trajectories
 dbInput.ip_address = '130.203.223.234'; % Ip address of server host
@@ -61,12 +35,12 @@ dbInput.password   = 'ivsg@Reber320'; % password
 
 dbInput.db_name       = 'roi_db'; % database name
 dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
-dbInput.trip_id       = 15; % traffic simulation id
+dbInput.trip_id       = 16; % traffic simulation id
 
 % flag triggers
 flag.dbQuery  = true; % set to 'true' to query from the database
-flag.doDebug  = true; % set to 'true' to print trajectory information to command window
-flag.plot     = true; % set to 'true' to plot
+flag.doDebug  = false; % set to 'true' to print trajectory information to command window
+flag.plot     = false; % set to 'true' to plot
 flag.dbInsert = false; % set to 'true' to insert data to database
 
 enu_reference_id = 3;
@@ -125,7 +99,8 @@ else
 end % NOTE: END IF statement 'flag.dbQuery'
 
     %% Query for vehicle trajectory
-for index_vehicle = 1:numel(list_of_vehicleIds)
+%for index_vehicle = 1:numel(list_of_vehicleIds)
+index_vehicle = 1;
     if flag.dbQuery
         raw_trajectory = fcn_queryVehicleTrajectory(list_of_vehicleIds(index_vehicle),...
             dbInput.trip_id,dbInput);
@@ -172,10 +147,11 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
     % Total number of times a vehicle is stoping
     number_of_stops  = numel(indices_to_stop);
 
-    % Process a vehicle trajectory between a start and stop
+    %% Process a vehicle trajectory between a start and stop
     for index_stop = 1:number_of_stops
         temp_trajectory = raw_trajectory(indices_to_start(index_stop):...
             indices_to_stop(index_stop),:);
+        disp(index_stop)
 
         % Initial conditions
         global_acceleration = zeros(7,1); % global indicates that it's a global variable
@@ -341,4 +317,4 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
             fcn_pushDataToIVSGdb(friction_measurement_table);
         end % NOTE: END IF statement 'flag.dbInsert'
     end % NOTE: END FOR loop 'number_of_stops'
-end
+%end
