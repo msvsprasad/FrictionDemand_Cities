@@ -107,6 +107,9 @@ if flag_update
     flag_update = false;
 end
 
+if 0>U
+    U = 0;
+end
 %% Yaw rate
 r = fcn_VD_kinematicYawRate(U,steering_angle,vehicle);
 
