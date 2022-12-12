@@ -1,7 +1,7 @@
 function fcn_pushDataToIVSGdb(input_table)
 %% ------------------------ CONNECT TO DATABASE ------------------------ %%
 % Database parameters
-databasename = 'road_traffic_extend_2_matlab'; % database name
+databasename = 'roi_db'; % database name
 username = 'brennan'; % user name for the server
 password = 'ivsg@Reber320'; % password
 driver = 'org.postgresql.Driver';   % JDBC Driver
@@ -19,7 +19,7 @@ end
 fprintf('Connected to the DB \n');
 
 %% ----------------------- PUSH DATA TO DATABASE ----------------------- %%
-tablename = 'compare_vehicle_sims';  % relation name
+tablename = 'road_traffic_extend_2_matlab';  % relation name
 % insert data into the table
 sqlwrite(conn, tablename, input_table);
 
