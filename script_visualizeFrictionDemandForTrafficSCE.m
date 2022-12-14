@@ -17,19 +17,19 @@ dbInput.ip_address = '130.203.223.234'; % Ip address of server host
 dbInput.port       = '5432'; % port number
 dbInput.username   = 'brennan'; % user name for the server
 dbInput.password   = 'ivsg@Reber320'; % password
-dbInput.db_name    = 'nsf_roadtraffic_friction_v2'; % name of the database
+dbInput.db_name    = 'roi_db'; % name of the database
 
-dbInput.sim_traffic_table = 'compare_vehicle_sims'; % name of the table containing simulated traffic data
+dbInput.sim_traffic_table = 'road_traffic_extend_2_matlab'; % name of the table containing simulated traffic data
 
-vehicle_sim_trip_id = 502;
+vehicle_sim_trip_id = 503;
 number_of_colormaps = 101;
 colormap_friction_demand = jet(number_of_colormaps);
 
 %%% SCE Downtown
-min_lat = 40.7917;
-max_lat = 40.8083;
-min_lon = -77.875;
-max_lon = -77.85;
+min_lat = 76.08;%40.7917;
+max_lat = 76.0915;%40.8083;
+min_lon = -69.95;%-77.875;
+max_lon = -69.96;%-77.85;
 %%% I99 junction
 % min_lat = 40.8194;
 % max_lat = 40.8306;
@@ -42,16 +42,18 @@ DB = Database(dbInput.db_name,dbInput.ip_address,dbInput.port,...
               dbInput.username,dbInput.password);
 
 % SQL statement to query friction demand and position data
-sql_query = ['SELECT cg_latitude, cg_longitude, friction_true_fl'...
-            ' FROM ' dbInput.sim_traffic_table...
-            ' WHERE vehicle_sim_trip_id = ' num2str(vehicle_sim_trip_id)...
-                  ' AND cg_latitude >= ' num2str(min_lat)...
-                  ' AND cg_latitude <= ' num2str(max_lat)...
-                  ' AND cg_longitude >= ' num2str(min_lon)...
-                  ' AND cg_longitude <= ' num2str(max_lon)...
-                      ' LIMIT 2397382'];
+% sql_query = ['SELECT cg_latitude '...
+%             ' FROM ' dbInput.sim_traffic_table...
+%             ' WHERE vehicle_sim_trip_id = ' num2str(vehicle_sim_trip_id)...
+%                   ' AND cg_latitude >= ' num2str(min_lat)...
+%                   ' AND cg_latitude <= ' num2str(max_lat)...
+%                   ' AND cg_longitude >= ' num2str(min_lon)...
+%                   ' AND cg_longitude <= ' num2str(max_lon)...
+%                       ' LIMIT 2 ']; %2397382
+test_query = ['SELECT cg_latitude, cg_east, cg_longitude, friction_true_fl FROM ' dbInput.sim_traffic_table ...
+                ' LIMIT ' num2str(100)];
 
-friction_demand = fetch(DB.db_connection,sql_query);
+friction_demand = fetch(DB.db_connection,test_query);
 
 % Disconnect from the database
 DB.disconnect();
