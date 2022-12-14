@@ -45,6 +45,7 @@ flag.plot     = false; % set to 'true' to plot
 flag.dbInsert = true; % set to 'true' to insert data to database
 
 enu_reference_id = 2;
+% change trip ID to something else so you can query new data
 simulink_trip_id = 503;
 
 deltaT           = 0.01; % Vehicle simulation step-size
@@ -138,6 +139,7 @@ else
 end % NOTE: END IF statement 'flag.dbQuery'
 
 %% Query for vehicle trajectory
+mj_traj = [0, 0];
 for index_vehicle = 1:numel(list_of_vehicleIds)
     disp(index_vehicle)
     if flag.dbQuery
@@ -199,10 +201,13 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
         [cg_east, cg_north, cg_up] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
             raw_trajectory{:,{'longitude_front'}},...
             alt, lat0, lon0, h0, wgs84);
-        
+        raw_trajectory{:,{'position_front_x'}} = cg_east;
+        raw_trajectory{:,{'position_front_y'}} = cg_north;
         %% Run the simulation true
         % Vehicle path in EN/XY coordinates
         disp('Vehicle Simulation starting')
+        % change all position_front_x and y to cg_east and cg_north (enu
+        % coordinates NOT UTM)
         vehicle_path = raw_trajectory{:,{'position_front_x','position_front_y'}};
         diff_station = sqrt(sum(diff(vehicle_path).^2,2));
         if 0 == diff_station(1)
@@ -334,6 +339,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                 lon_vel   = matlab_States(:,1); lat_vel = matlab_States(:,2); yaw_rate = matlab_States(:,3);
                 % Pose of the vehicle
                 pose      = matlab_pose;
+                mj_traj   = [mj_traj; pose(:,[1,2])];
                 % add snap funciton from Satya to find Up coord of ENU
                 cg_station = cumsum([0; sqrt(sum(diff(pose(:,[1,2])).^2,2))]);
                 % Friction demand
@@ -434,7 +440,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     friction_measurement_table = struct2table(friction_measurement);
                     
                     % push data to database
-                    fcn_pushDataToIVSGdb(friction_measurement_table);
+                   % fcn_pushDataToIVSGdb(friction_measurement_table);
                 end % NOTE: END IF statement 'flag.dbInsert'
             end % NOTE: END IF statement for min_trip_size
         end % NOTE: END IF statement for Idx minimum size
