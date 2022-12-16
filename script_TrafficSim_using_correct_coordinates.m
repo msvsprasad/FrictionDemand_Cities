@@ -93,7 +93,7 @@ matsim_unix_time = posixtime(datetime('now','TimeZone','America/New_York')); % [
 matsim_gps_time  = matsim_unix_time+gps_utc_time; % [seconds] GPS Time
 
 %% Query and store ENU reference data
-set traffic table name
+% set traffic table name
 dbInput.traffic_table = 'enu_reference_roi_db';
 
 % query ENU data
@@ -208,6 +208,11 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
 
         raw_trajectory{:,{'position_front_x'}} = cg_east;
         raw_trajectory{:,{'position_front_y'}} = cg_north;
+        
+        %% get the centerline data for network
+        % add yaw and smooth (possibly)
+        % for loop to loop through each section (just the vehicle sections
+        
         %% Run the simulation true
         % Vehicle path in EN/XY coordinates
         disp('Vehicle Simulation starting')
@@ -227,6 +232,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
         % Orientation of the vehicle
         [~,ia,ic]    = unique(vehicle_path,'rows');
         temp_vehicle_path = vehicle_path(ia,:);
+        
         vehicle_yaw  = fcn_Path_calcYawFromPathSegments(temp_vehicle_path);
         vehicle_yaw  = [vehicle_yaw; vehicle_yaw(end)]; %#ok<AGROW>
         vehicle_yaw  = vehicle_yaw(ic);
