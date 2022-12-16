@@ -93,7 +93,7 @@ matsim_unix_time = posixtime(datetime('now','TimeZone','America/New_York')); % [
 matsim_gps_time  = matsim_unix_time+gps_utc_time; % [seconds] GPS Time
 
 %% Query and store ENU reference data
-% set traffic table name
+set traffic table name
 dbInput.traffic_table = 'enu_reference_roi_db';
 
 % query ENU data
@@ -148,14 +148,14 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
     else
         load(['raw_trajectory_V' num2str(list_of_vehicleIds(index_vehicle)) '_T' num2str(dbInput.trip_id) '.mat']);
     end % NOTE: END IF statement 'flag.dbQuery'
-    
+
     if flag.doDebug
-        % Plot trajectory
-%         fcn_VD_plotTrajectory(raw_trajectory{:,{'position_front_x',...
-%             'position_front_y'}},12345);
-%         temp_raw_trajectory = raw_trajectory;
+        Plot trajectory
+        fcn_VD_plotTrajectory(raw_trajectory{:,{'position_front_x',...
+            'position_front_y'}},12345);
+        temp_raw_trajectory = raw_trajectory;
     end % NOTE: END IF statement 'flag.doDebug'
-    
+
     %% Add elevation to the State College road-network
     % set the minimun and maximum X and Y values to limit the nearest
     % neighbors search to just the specific trajectory
@@ -163,7 +163,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
     position_front_x_max = max(raw_trajectory{:,{'position_front_x'}});
     position_front_y_max = max(raw_trajectory{:,{'position_front_y'}});
     position_front_y_min = min(raw_trajectory{:,{'position_front_y'}});
-    
+
     elevation_map_range = (X>=position_front_x_min & ...
         X<=position_front_x_max & ...
         Y>=position_front_y_min & ...
@@ -172,15 +172,15 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
         Y>=position_front_y_min & Y <=position_front_y_max);
     Ynew = Y(X>=position_front_x_min & X<=position_front_x_max & ...
         Y>=position_front_y_min & Y <=position_front_y_max);
-    
+
     % create a new elevation map with the specific trajecotry range
     elevation_map_new = elevation_map(elevation_map_range,:);
-    
+
     % Find the nearest neighbors
     Idx = knnsearch([Xnew,Ynew],[raw_trajectory{:,{'position_front_x','position_front_y'}}],"K",2);
-    
+
     % interpolate the altitude (average it)
-    
+
     if length(Idx)>=1 && length(Xnew)>1 && length(Ynew)>1
         path_vector = [Xnew(Idx(:,2))-Xnew(Idx(:,1)),...
             Ynew(Idx(:,2))-Ynew(Idx(:,1))];
@@ -191,7 +191,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
             path_vector(:,2).*point_vector(:,2))...
             ./path_segment_length; % Do dot product
         percent_along_length = projection_distance./path_segment_length;
-        
+
         % Calculate the outputs
         alt = elevation_map(Idx(:,1),3) + (elevation_map(Idx(:,2),3) - elevation_map(Idx(:,1),3)).*percent_along_length;
         %% Convert lla to enu
@@ -200,12 +200,12 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
         [cg_east, cg_north, cg_up] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
             raw_trajectory{:,{'longitude_front'}},...
             alt, lat0, lon0, h0, wgs84);
-        
-        figure(01)
-        clf
-%         plot(cg_east,cg_north)
-        hold all
-        
+
+        %         figure(01)
+        %         clf
+        %         plot(cg_east,cg_north)
+        %         hold all
+
         raw_trajectory{:,{'position_front_x'}} = cg_east;
         raw_trajectory{:,{'position_front_y'}} = cg_north;
         %% Run the simulation true
@@ -225,13 +225,13 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
             diff_station    = [diff_station; diff_station(end)];  %#ok<AGROW>
         end
         % Orientation of the vehicle
-        [~,ia,ic]    = unique(vehicle_station);
+        [~,ia,ic]    = unique(vehicle_path,'rows');
         temp_vehicle_path = vehicle_path(ia,:);
         vehicle_yaw  = fcn_Path_calcYawFromPathSegments(temp_vehicle_path);
         vehicle_yaw  = [vehicle_yaw; vehicle_yaw(end)]; %#ok<AGROW>
         vehicle_yaw  = vehicle_yaw(ic);
         clear ia ic temp_vehicle_path
-        
+
         % Indices where the vehicle stopped
         temp_var         = (1:size(raw_trajectory,1))';
         % Indices at which the vehicle is at rest
@@ -254,10 +254,9 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
         for index_stop = 1:number_of_stops
             temp_trajectory = raw_trajectory(indices_to_start(index_stop):...
                 indices_to_stop(index_stop),:);
-            
+
             if size(temp_trajectory,1) > min_trip_size
-                %             disp(index_stop)
-                
+
                 % Initial conditions
                 global_acceleration = zeros(7,1); % global indicates that it's a global variable
                 input_states = [temp_trajectory.current_speed(1); 0; 0; ...
@@ -266,7 +265,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     temp_trajectory.position_front_y(1); ...
                     vehicle_yaw(indices_to_start(index_stop))];
                 U = input_states(1);
-                
+
                 % Reference traversal for the vehicle to track
                 reference_traversal.X   = temp_trajectory.position_front_x;
                 reference_traversal.Y   = temp_trajectory.position_front_y;
@@ -275,7 +274,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                 reference_traversal.Station  = vehicle_station(indices_to_start(index_stop):...
                     indices_to_stop(index_stop));
                 reference_traversal.Velocity = temp_trajectory.current_speed;
-                
+
                 % Time parameters
                 % Note: TotalTime is the time taken in Aimsun, could add a slack to this
                 TotalTime = raw_trajectory.aimsun_time(indices_to_stop(index_stop))-...
@@ -287,7 +286,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                 else
                     duration_of_rest = 0;
                 end
-                
+
                 % Define variable to store vehicle information
                 matlab_time   = NaN(floor(TotalTime/deltaT)+1,1);
                 matlab_States = NaN(floor(TotalTime/deltaT)+1,9);
@@ -297,7 +296,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     matlab_time(counter)       = t;
                     matlab_States(counter,1:7) = input_states(1:7)';
                     matlab_pose(counter,:)     = input_states(8:10)';
-                    
+
                     %% Controller: Steering + Velocity
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                     % Note: Controller need to be tuned, particularly for the
@@ -314,7 +313,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     else
                         wheel_troque = zeros(4,1);
                     end
-                    
+
                     %% 7-DoF Vehicle Model
                     flag_update = true; % set it to to true before every call to RK4 method
                     if 0.5<=U
@@ -334,11 +333,11 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                         r = fcn_VD_kinematicYawRate(U,steering_angle,vehicle);
                         input_states = [U; V; r; omega; y(2:4)]; clear y;
                     end
-                    
+
                     matlab_States(counter,8:9) = global_acceleration(1:2)';
                     counter = counter+1;
                 end
-                
+
                 % Longitudinal and lateral acceleration
                 lon_accel = matlab_States(:,8); lat_accel = matlab_States(:,9);
                 % Longitudinal, lateral, and yaw velocity
@@ -349,7 +348,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                 cg_station = cumsum([0; sqrt(sum(diff(pose(:,[1,2])).^2,2))]);
                 % Friction demand
                 friction_demand = sqrt(lon_accel.^2 + lat_accel.^2)/9.81;
-                
+
                 %% Plot the results
                 if flag.plot
                     fcn_VD_plotStationLongitudinalAcceleration(cg_station,lon_accel,01); % Plot longitudinal acceleration
@@ -357,44 +356,44 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     fcn_VD_plotStationLongitudinalVelocity(cg_station,lon_vel,03); % Plot longitudinal velocity
                     fcn_VD_plotStationLateralVelocity(cg_station,lat_vel,04); % Plot lateral velocity
                     fcn_VD_plotStationYawRate(cg_station,yaw_rate,05); % Plot yaw rate
-                    
+
                     fcn_VD_plotTrajectory(pose(:,[1,2]),06); % Plot output trajectory
                     fcn_VD_plotStationYaw(cg_station,pose(:,3),07); % Plot yaw
-                    
+
                     fcn_VD_plotStationFrictionDemand(cg_station,friction_demand,08); % Plot force ratio
                 end % NOTE: END IF statement 'flag.plot'
-                
+
                 %% Insert data into database
                 if flag.dbInsert
                     % store data to struct
                     output_data_length = length(cg_station);
-                    
+
                     % reference for LLA to ENU transformation and viceversa
                     friction_measurement.enu_reference_id = ...
                         enu_reference_id*ones(output_data_length,1);
-                    
+
                     % traffic and vehicle dynamic simulation information
                     friction_measurement.traffic_sim_trip_id = ...
                         dbInput.trip_id*ones(output_data_length,1);
                     friction_measurement.vehicle_sim_trip_id = ...
                         simulink_trip_id*ones(output_data_length,1);
-                    
+
                     % road segment and vehicle information
                     %             friction_measurement.road_segment_id = raw_trajectory.section_id;
                     friction_measurement.vehicle_id = ...
                         list_of_vehicleIds(index_vehicle)*ones(output_data_length,1);
-                    
-                    
+
+
                     % = ...
                     %   utm2ll(pose(:,1),pose(:,2),18
                     %  w/ wgs84 = wgs84Ellipsoid; as spheroid
                     %              = raw_trajectory.altitude;
-                    
+
                     % CG Pose
                     %                 friction_measurement.cg_east = cg_east;
                     %                 friction_measurement.cg_north = cg_north;
                     %                 friction_measurement.cg_up = cg_up;
-                    
+
                     friction_measurement.cg_east  = pose(:,1);
                     friction_measurement.cg_north = pose(:,2);
                     %               friction_measurement.cg_up    = raw_trajectory.position_front_z; MATLAB variable that gets created
@@ -402,7 +401,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     cg_east_new = cg_new(:,1);
                     cg_north_new = cg_new(:,2);
                     Idx = knnsearch([cg_east_new,cg_north_new],[pose(:,1),pose(:,2)],"K",2);
-                    
+
                     % interpolate the altitude (average it)
                     path_vector = [cg_east_new(Idx(:,2))-cg_east_new(Idx(:,1)),...
                         cg_north_new(Idx(:,2))-cg_north_new(Idx(:,1))];
@@ -414,7 +413,7 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                         ./path_segment_length; % Do dot product
                     percent_along_length = projection_distance./path_segment_length;
                     friction_measurement.cg_up = cg_up(Idx(:,1)) + (cg_up(Idx(:,2)) - cg_up(Idx(:,1))).*percent_along_length;
-                    
+
                     %                 friction_measurement.cg_up = interp2(cg_east,cg_north,cg_up,pose(:,1),pose(:,2),'extrapval',3);
                     friction_measurement.yaw      = pose(:,3);
                     friction_measurement.cg_station = cg_station;
@@ -428,26 +427,26 @@ for index_vehicle = 1:numel(list_of_vehicleIds)
                     friction_measurement.longitudinal_velocity = lon_vel;
                     friction_measurement.lateral_velocity      = lat_vel;
                     friction_measurement.yaw_rate              = yaw_rate;
-                    
+
                     % CG Acceleration
                     friction_measurement.longitudinal_acceleration = lon_accel;
                     friction_measurement.lateral_acceleration      = lat_accel;
-                    
+
                     % Force Demand
                     friction_measurement.friction_true_fl = friction_demand;
-                    
+
                     % Time information
                     friction_measurement.simulation_time = raw_trajectory.aimsun_time((indices_to_start(index_stop)+1))+matlab_time; % Aimsun Simulation time
                     friction_measurement.sim_wall_time   = matsim_gps_time+friction_measurement.simulation_time;
                     time_zone = datetime(matsim_unix_time*ones(output_data_length,1),...
                         'ConvertFrom', 'posixtime','TimeZone','America/New_York','Format','yyyy-MM-dd HH:mm:ss');
                     friction_measurement.timestamp = convertTo(time_zone,'excel'); % Convert to cell array of character vectors
-                    
+
                     % convert the struct format to table format
                     friction_measurement_table = struct2table(friction_measurement);
-                    
+
                     % push data to database
-                   % fcn_pushDataToIVSGdb(friction_measurement_table);
+                    % fcn_pushDataToIVSGdb(friction_measurement_table);
                 end % NOTE: END IF statement 'flag.dbInsert'
             end % NOTE: END IF statement for min_trip_size
         end % NOTE: END IF statement for Idx minimum size
