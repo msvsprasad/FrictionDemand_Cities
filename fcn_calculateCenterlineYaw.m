@@ -11,12 +11,12 @@
 %%
 function processed_centerline_pose = fcn_calculateCenterlineYaw(sections_shape)
 %% Extract ID values from shape file struct
-id_shp = (extractfield(sections_shape,'id'))';
+id_sections_shp = (extractfield(sections_shape,'id'))';
 
 %% get the centerline data for network
 % initialize variable to store processed position orientation (pose) data
 processed_centerline_pose = [];
-list_of_sectionIds_yaw = id_shp;
+list_of_sectionIds_yaw = id_sections_shp;
 for i = 1:length(list_of_sectionIds_yaw)
     % create the centerline path for each section ID
     centerline_path = [sections_shape(i).X', sections_shape(i).Y'];
@@ -25,7 +25,10 @@ for i = 1:length(list_of_sectionIds_yaw)
     centerline_path = centerline_path(~isnan(centerline_path(:,1)),:);
 
     % calculate yaw based off of the centerline path
+    
     centerline_yaw = fcn_Path_calcYawFromPathSegments(centerline_path);
+%     centerline_yaw = atan2(diff(sections_shape(i).Y'),diff(sections_shape(i).X'));
+%     centerline_yaw = centerline_yaw(~isnan(centerline_yaw(:,1)),:);
     centerline_yaw = [centerline_yaw; centerline_yaw(end)];
 
     % processed centerline data: section ID, path, yaw
