@@ -51,11 +51,11 @@ h_fig = figure(fig_num);
 set(h_fig, 'Name', 'fcn_VD_plotTrajectory');
 width = 600; height = 400; right = 100; bottom = 400;
 set(gcf, 'position', [right, bottom, width, height])
-clf
 
-plot(trajectory(:,1), trajectory(:,2), 'g', 'Linewidth', 1.2)
+plot(trajectory(:,1), trajectory(:,2), 'g.', 'Linewidth', 1.2)
 hold on
 plot(trajectory(1,1), trajectory(1,2), 'r*', 'Markersize', 13)
+hold on
 grid on
 xlabel('East $[m]$', 'Interpreter', 'latex', 'Fontsize', 13)
 ylabel('North $[m]$', 'Interpreter', 'latex', 'Fontsize', 13)
