@@ -137,9 +137,12 @@ if flag.dbQuery
 else
     list_of_vehicleIds = [5007; 295];
 end % NOTE: END IF statement 'flag.dbQuery'
-
+%%
+dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
+load('SectionId_VehID.mat')
+list_of_vehicleIds = unique(SectionId_VehID(:,2));
 %% Query for vehicle trajectory
-for index_vehicle = 2%1:numel(list_of_vehicleIds)
+for index_vehicle = 2637%1:numel(list_of_vehicleIds)
     disp(index_vehicle)
     if flag.dbQuery
         disp('Query for vehicle trajectory')
@@ -197,18 +200,13 @@ for index_vehicle = 2%1:numel(list_of_vehicleIds)
         %% Convert lla to enu
         % lat and lon is as querried from the database
         % height is alt
-        [cg_east, cg_north, cg_up] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
-            raw_trajectory{:,{'longitude_front'}},...
-            alt, lat0, lon0, h0, wgs84);
-%         load('raw_trajectory_SCE_1.mat')
-%         load('cg_east.mat')
-%         load('cg_north.mat')
-%         load('cg_up.mat')
-
-
-        raw_trajectory{:,{'position_front_x'}} = cg_east;
-        raw_trajectory{:,{'position_front_y'}} = cg_north;
-
+%         [cg_east, cg_north, cg_up] = geodetic2enu(raw_trajectory{:,{'latitude_front'}},...
+%             raw_trajectory{:,{'longitude_front'}},...
+%             alt, lat0, lon0, h0, wgs84);
+        load('raw_trajectory_SCE_1.mat')
+        load('cg_east.mat')
+        load('cg_north.mat')
+        load('cg_up.mat')
         %% Get the yaw data for the entire AIMSUN network
         % Load necessary mat files into the workspace
         load('sections_shape.mat') % shape file used in the AIMSUN simulation
@@ -216,13 +214,13 @@ for index_vehicle = 2%1:numel(list_of_vehicleIds)
 %         load('raw_trajectory_SCE_1.mat')
 
         % Calculate centerline position and orientation (pose) section ID, X, Y, yaw
-        centerline_section_pose = fcn_calculateCenterlineYaw(sections_shape);
-        centerline_junction_pose = fcn_calculateTurningYaw(turning_shape);
-
-        vehicle_yaw = fcn_calculateVehicleYawFromCenterlineData...
-            (raw_trajectory,centerline_section_pose,centerline_junction_pose);
-        vehicle_yaw = vehicle_yaw(:,2);
-%         vehicle_yaw  = [vehicle_yaw; vehicle_yaw(end)];
+        centerline_section_pose = fcn_calculateRoadCenterlineSection(sections_shape);
+        centerline_junction_pose = fcn_calculateRoadCenterlineTurning(turning_shape);
+%         vehicle_yaw = fcn_calculateVehicleYawFromCenterlineData...
+%             (raw_trajectory,centerline_section_pose,centerline_junction_pose);
+%         vehicle_yaw = vehicle_yaw(:,2);
+%         raw_trajectory{:,{'position_front_x'}} = cg_east;
+%         raw_trajectory{:,{'position_front_y'}} = cg_north;
 
         %% Run the simulation true
         % Vehicle path in EN/XY coordinates
