@@ -58,7 +58,7 @@ function offset_traversals = fcn_Path_fillOffsetTraversalsAboutTraversal(referen
 %      -- allow empty figure argument to avoid plotting
 
 flag_do_debug = 0; % Flag to show the results for debugging
-flag_do_plots = 1; % % Flag to plot the final results
+flag_do_plots = 0; % % Flag to plot the final results
 flag_check_inputs = 1; % Flag to perform input checking
 
 if flag_do_debug
@@ -207,7 +207,6 @@ if flag_do_plots
     
     % Add a legend
     legend('Road Centerline', 'Lane centerline','location','best');
-    
 end
 
 if flag_do_debug
