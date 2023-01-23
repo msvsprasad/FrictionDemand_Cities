@@ -52,9 +52,9 @@ h_fig = figure(fig_num);
 set(h_fig, 'Name', 'fcn_VD_plotStationForceRatio');
 width = 600; height = 400; right = 100; bottom = 400;
 set(gcf, 'position', [right, bottom, width, height])
-clf
-plot(station, friction_demand, 'g', 'Linewidth', 1.2)
+plot(station, friction_demand, 'Linewidth', 1.2)
 grid on
+hold on
 xlabel('Station $[m]$', 'Interpreter', 'latex', 'Fontsize', 13)
 ylabel('Friction Demand [No Units]', 'Interpreter', 'latex', 'Fontsize', 13)
 % Get handle to current axes.
