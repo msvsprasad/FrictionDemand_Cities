@@ -39,7 +39,8 @@ dbInput.trip_id    = 16; % traffic simulation id
 dbInput.traffic_table = 'enu_reference_roi_db';
 
 % flag triggers
-flag.dbQuery  = true; % set to 'true' to query from the database
+flag.dbQuery  = true; % set to 'true' to query from the database\
+flag.dbQuerySectionID_VehID = false;
 flag.doDebug  = true; % set to 'true' to print trajectory information to command window
 flag.plot     = false; % set to 'true' to plot
 flag.dbInsert = true; % set to 'true' to insert data to database
@@ -126,16 +127,21 @@ elevation_map = [lat_grid(:) long_grid(:) A(:)];
 
 % convert lat and lon to UTM
 [X,Y] = ll2utm(elevation_map(:,1),elevation_map(:,2),18);
+
 %% Query for valid Section ID and Vehicle ID combinations
 % set traffic table to collect vehicle trajectory data
 dbInput.traffic_table = 'road_traffic_raw_extend_2'; % table containing traffic simulation data
 
-if flag.dbQuery
+if flag.dbQuerySectionID_VehID
     disp('Query for section and vehicle ID')
     SectionId_VehID    = fcn_findValidSectionandVehicleId(dbInput.trip_id,dbInput);
     list_of_vehicleIds = unique(SectionId_VehID(:,2));
+    list_of_sectionIds = unique(SectionId_VehID(:,1));
 else
-    list_of_vehicleIds = [5007; 295];
+    %     list_of_vehicleIds = [5007; 295];
+    load('SectionId_VehID.mat')
+    list_of_vehicleIds = unique(SectionId_VehID(:,2));
+    list_of_sectionIds = unique(SectionId_VehID(:,1));
 end % NOTE: END IF statement 'flag.dbQuery'
 
 %% Query for vehicle trajectory
